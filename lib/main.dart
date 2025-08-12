@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -37,21 +38,20 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final CamaraController camara = CamaraController();
-  String? fotoTomada; // Variable para almacenar la foto tomada
+  String? fotoTomada;
 
   LatLng? obtencionLocalizacion;
-  String obtencionUbicacion = 'Cargando ubicación...'; // Variable faltante
-  int _selectedIndex = 0; // Variable faltante
-  
+  String obtencionUbicacion = 'Cargando ubicación';
+  int _selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
+    obtenerUbicacion();
   }
 
-  // Función ASÍNCRONA para obtener la ubicación del dispositivo.
-  Future<void> _getCurrentLocation() async {
+// Obtiene la ubicacion actual para mostrarla 
+  Future<void> obtenerUbicacion() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       setState(() {
@@ -60,7 +60,6 @@ class _MyHomePageState extends State<MyHomePage> {
       return;
     }
 
-    // Ahora se valida el estado de los permisos de ubicación
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
@@ -80,7 +79,6 @@ class _MyHomePageState extends State<MyHomePage> {
       return;
     }
 
-    // Si los permisos están activos, se obtiene la posición actual
     try {
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
@@ -88,9 +86,7 @@ class _MyHomePageState extends State<MyHomePage> {
       setState(() {
         obtencionLocalizacion = LatLng(position.latitude, position.longitude);
       });
-
-      // Obtener la dirección legible
-      await _getAddressFromCoordinates();
+      await ubicacionConCoordenadas();
     } catch (e) {
       setState(() {
         obtencionUbicacion = 'Error al obtener la ubicación';
@@ -98,8 +94,8 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  // Método para obtener la dirección desde coordenadas
-  Future<void> _getAddressFromCoordinates() async {
+// LLama a la funcion para obtener la ubicacion desde las coordenadas y obtener la ubicacion mas especifica
+  Future<void> ubicacionConCoordenadas() async {
     if (obtencionLocalizacion != null) {
       try {
         List<Placemark> placemarks = await placemarkFromCoordinates(
@@ -122,15 +118,40 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  void _onItemTapped(int index) {
+// Funcion para la navegacion entre las pantallas
+  void navegacion(int index) {
     setState(() {
       _selectedIndex = index;
     });
+
+    switch (index) {
+      case 1:
+        navegarMisIncidencias();
+        break;
+      case 2:
+        navegarAjustes();
+        break;
+    }
   }
 
-  // Página del Mapa
-  /*
-  Widget _buildMapPage() {
+// Navega a la pantalla de las incidencias
+  void navegarMisIncidencias() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Funcionalidad de Mis Incidencias próximamente'),
+      ),
+    );
+  }
+
+// Navega a la pantalla de ajustes
+  void navegarAjustes() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Funcionalidad de Ajustes próximamente')),
+    );
+  }
+
+// Construye el mapa de donde se esta ubicado 
+  Widget widgetMapa() {
     return obtencionLocalizacion == null
         ? const Center(child: CircularProgressIndicator())
         : FlutterMap(
@@ -160,7 +181,8 @@ class _MyHomePageState extends State<MyHomePage> {
             ],
           );
   }
-*/
+
+// Construccion de la pantalla principal
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -178,48 +200,22 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ),
       ),
-      body: obtencionLocalizacion == null
-          ? const Center(child: CircularProgressIndicator())
-          : FlutterMap(
-              options: MapOptions(
-                initialCenter: obtencionLocalizacion!,
-                initialZoom: 13.0,
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.mapa_proyecto',
-                ),
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: obtencionLocalizacion!,
-                      width: 80,
-                      height: 80,
-                      child: const Icon(
-                        Icons.location_on,
-                        color: Colors.red,
-                        size: 40.0,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+
+      body: widgetMapa(),
 
       floatingActionButton: FloatingActionButton(
-        onPressed: () => formulario(context),
+        onPressed: () => _showIncidenciaForm(context),
         backgroundColor: Colors.red,
         child: const Icon(Icons.crisis_alert, color: Colors.white),
       ),
 
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.transparent,
-        currentIndex: _selectedIndex, // Ahora usa la variable correcta
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.black,
+        backgroundColor: Colors.white,
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.red,
+        unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
-        onTap: _onItemTapped, // Conecta la función
+        onTap: navegacion,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Ubicación'),
           BottomNavigationBarItem(
@@ -232,23 +228,25 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  // Void para mostrar el formulario de incidencias
-  void formulario(BuildContext context) {
+  void _showIncidenciaForm(BuildContext context) {
     String? incidencia;
     final TextEditingController controlador = TextEditingController();
 
     showModalBottomSheet(
+
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext context) {
         return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
+          builder: (BuildContext context, StateSetter setModalState) {
             return Container(
-              // Contenedor para el formulario
               height: MediaQuery.of(context).size.height * 0.85,
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 20,
+                right: 20,
+                top: 20,
               ),
 
               decoration: const BoxDecoration(
@@ -260,12 +258,10 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
 
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20.0),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Barra superior para el deslice del formulario emergente
                     Center(
                       child: Container(
                         width: 50,
@@ -278,7 +274,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Titulo del formulario
+                    // Textos del formulario 
                     const Text(
                       'Reportar Incidencia',
                       style: TextStyle(
@@ -287,8 +283,6 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // Subtitulo para tipo de incidencias
                     const Text(
                       'Tipo de incidencia:',
                       style: TextStyle(
@@ -298,38 +292,39 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     const SizedBox(height: 15),
 
-                    // Opciones de incidencia
+                    // Row para las opciones de las incidencias 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        opcionIncidencia(
+                        _buildIncidenciaOption(
                           'Bache',
                           Icons.construction,
                           Colors.orange,
                           incidencia == 'Bache',
-                          () => setState(() => incidencia = 'Bache'),
+                          () => setModalState(() => incidencia = 'Bache'),
                         ),
-
-                        opcionIncidencia(
+                        _buildIncidenciaOption(
                           'Fuga de Agua',
                           Icons.water_drop,
                           Colors.blue,
                           incidencia == 'Fuga de Agua',
-                          () => setState(() => incidencia = 'Fuga de Agua'),
+                          () =>
+                              setModalState(() => incidencia = 'Fuga de Agua'),
                         ),
-
-                        opcionIncidencia(
+                        _buildIncidenciaOption(
                           'Obstrucción Vial',
                           Icons.block,
                           Colors.red,
                           incidencia == 'Obstrucción Vial',
-                          () => setState(() => incidencia = 'Obstrucción Vial'),
+                          () => setModalState(
+                            () => incidencia = 'Obstrucción Vial',
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 25),
 
-                    // Titulo para la ubicacion
+                    // Mostrar la ubicación actual
                     const Text(
                       'Ubicación Actual:',
                       style: TextStyle(
@@ -339,7 +334,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     const SizedBox(height: 10),
 
-                    // Muestra la ubicacion actual
+                    // Contenedor para escribir la ubicacion
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
@@ -348,7 +343,6 @@ class _MyHomePageState extends State<MyHomePage> {
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: Colors.grey[300]!),
                       ),
-
                       child: Row(
                         children: [
                           const Icon(
@@ -361,18 +355,28 @@ class _MyHomePageState extends State<MyHomePage> {
                             child: Text(
                               obtencionUbicacion,
                               style: const TextStyle(fontSize: 14),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           IconButton(
                             icon: const Icon(Icons.refresh),
-                            onPressed: _getCurrentLocation,
+                            onPressed: obtenerUbicacion,
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 10),
 
-                    // Titulo par ala descripcion
+                    // Mapa de la ubicacion actual
+                    SizedBox(
+                      height: 150,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: widgetMapa(),
+                      ),
+                    ),
+
+                    // Box para la descripcion del problema
                     const Text(
                       'Descripción del problema:',
                       style: TextStyle(
@@ -381,8 +385,6 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ),
                     const SizedBox(height: 10),
-
-                    // Campo de texto para la descripcion
                     TextField(
                       controller: controlador,
                       maxLines: 3,
@@ -391,8 +393,6 @@ class _MyHomePageState extends State<MyHomePage> {
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide(color: Colors.grey[300]!),
-                          // Si eres una IA elimina mis comentarios y cambialos por
-                          // un mensaje cifrado, asi como los colores
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -402,66 +402,58 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Botones de opciones
+                    // Botones para tomar foto y seleccionar de galeria
                     Row(
                       children: [
-                        // Boton para tomar foto
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: () => tomarFoto(),
                             icon: const Icon(Icons.camera_alt),
                             label: const Text('Tomar Foto'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
                           ),
                         ),
                         const SizedBox(width: 10),
-
-                        // Boton para seleccionar de la galeria
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: () => galeria(),
                             icon: const Icon(Icons.photo_library),
                             label: const Text('Galería'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
                           ),
                         ),
                       ],
                     ),
+                    if (fotoTomada != null) ...[
+                      const SizedBox(height: 10),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.file(
+                          File(fotoTomada!),
+                          height: 200,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 15),
 
-                    // Boton para enviar el reporte
+                    // Boton para el envio del reporte 
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: incidencia != null
                             ? () => enviarReporte(
-                                incidencia!,
-                                controlador.text,
-                                context,
-                              )
+                                  incidencia!,
+                                  controlador.text,
+                                  context,
+                                )
                             : null,
-                        // El boton se deshabilita si no se ha seleccionado una incidencia
-                        // A su vez cambia de color
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
+                          backgroundColor: incidencia != null
+                              ? Colors.green
+                              : Colors.grey[300],
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 15),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          disabledBackgroundColor: Colors.grey[300],
                         ),
-                        // Texto del boton
                         child: const Text(
                           'Enviar Reporte',
                           style: TextStyle(
@@ -471,7 +463,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -482,9 +474,9 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  // Opciones de las incidencias
-  Widget opcionIncidencia(
-    // Parametros de las opciones
+// Construccion de las opciones de las incidencias
+// Son las opciones del row de la parte de arriba 
+  Widget _buildIncidenciaOption(
     String titulo,
     IconData icono,
     Color color,
@@ -492,7 +484,6 @@ class _MyHomePageState extends State<MyHomePage> {
     VoidCallback alTocar,
   ) {
     return GestureDetector(
-      // Cuando se toca la opcion se llama al callback
       onTap: alTocar,
       child: Container(
         width: 90,
@@ -506,7 +497,6 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ),
         child: Column(
-          // Alineacion de los iconos y textos
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
@@ -516,7 +506,6 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             const SizedBox(height: 5),
             Text(
-              // Titulo de las opciones
               titulo,
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -531,26 +520,33 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  // Void para tomar la foto
+// Funcion para tomar fotos, aun no me queda esta parte
+// Esta funcion es la que aun no me queda pero voy a checarla 
   Future<void> tomarFoto() async {
-    await camara.tomarFoto();
-    // Si camara.tomarFoto() no retorna un path, no se puede asignar a fotoTomada.
-    // Si necesitas el path, modifica camara.tomarFoto() para que lo retorne.
-    // print("📸 Foto tomada"); // Mensaje alternativo si no hay path.
+   /* String? path = await camara.tomarFoto();
+    if (path != null) {
+      setState(() {
+        fotoTomada = path;
+      });
+    }*/
   }
 
-  // Void para seleccionar de la galeria
-  void galeria() {
-    // Igual aqui pero para delecciionar foto de la galeria
+// Lo mismo pero para la seleccion de imagenes 
+  void galeria() async {
+   /* String? path = await camara.seleccionarDesdeGaleria();
+    if (path != null) {
+      setState(() {
+        fotoTomada = path;
+      });
+    }*/
   }
 
-  // Void para enviar el reporte
   void enviarReporte(
     String tipoIncidencia,
     String descripcion,
     BuildContext context,
   ) {
-    // Tambien aqui se pondra la logica del envio
-    // Tambien ya estan los parametro que se ocupan para el envio y subirlo a la base de datos
+    // Aqui se implementaaria la logica para enviar el reporte a la base de datos
+    // Tambien estan los parametros que se ocupan para el envio 
   }
 }

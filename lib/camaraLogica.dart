@@ -1,6 +1,9 @@
 import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
 
+// En este archivo almacene toda la logica para el acceso a la camara
+// Aun no la implemento de forma correcta, pero ahi no mas quedo 
+
 class CamaraController {
   CameraController? _controller;
   List<CameraDescription>? _camaras;
