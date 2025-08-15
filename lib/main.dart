@@ -5,8 +5,14 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'camaraLogica.dart';
+import 'conexion.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await SupabaseBD().conexionSupa();
+  final datos = await SupabaseBD().enviarReporte('prueba', 'prueba', context);
   runApp(const MyApp());
 }
 
@@ -50,7 +56,7 @@ class _MyHomePageState extends State<MyHomePage> {
     obtenerUbicacion();
   }
 
-// Obtiene la ubicacion actual para mostrarla 
+  // Obtiene la ubicacion actual para mostrarla
   Future<void> obtenerUbicacion() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -94,7 +100,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-// LLama a la funcion para obtener la ubicacion desde las coordenadas y obtener la ubicacion mas especifica
+  // LLama a la funcion para obtener la ubicacion desde las coordenadas y obtener la ubicacion mas especifica
   Future<void> ubicacionConCoordenadas() async {
     if (obtencionLocalizacion != null) {
       try {
@@ -118,7 +124,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-// Funcion para la navegacion entre las pantallas
+  // Funcion para la navegacion entre las pantallas
   void navegacion(int index) {
     setState(() {
       _selectedIndex = index;
@@ -134,7 +140,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-// Navega a la pantalla de las incidencias
+  // Navega a la pantalla de las incidencias
   void navegarMisIncidencias() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -143,14 +149,14 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-// Navega a la pantalla de ajustes
+  // Navega a la pantalla de ajustes
   void navegarAjustes() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Funcionalidad de Ajustes próximamente')),
     );
   }
 
-// Construye el mapa de donde se esta ubicado 
+  // Construye el mapa de donde se esta ubicado
   Widget widgetMapa() {
     return obtencionLocalizacion == null
         ? const Center(child: CircularProgressIndicator())
@@ -182,7 +188,7 @@ class _MyHomePageState extends State<MyHomePage> {
           );
   }
 
-// Construccion de la pantalla principal
+  // Construccion de la pantalla principal
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -233,7 +239,6 @@ class _MyHomePageState extends State<MyHomePage> {
     final TextEditingController controlador = TextEditingController();
 
     showModalBottomSheet(
-
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -274,7 +279,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Textos del formulario 
+                    // Textos del formulario
                     const Text(
                       'Reportar Incidencia',
                       style: TextStyle(
@@ -292,7 +297,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     const SizedBox(height: 15),
 
-                    // Row para las opciones de las incidencias 
+                    // Row para las opciones de las incidencias
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
@@ -436,16 +441,16 @@ class _MyHomePageState extends State<MyHomePage> {
                     ],
                     const SizedBox(height: 15),
 
-                    // Boton para el envio del reporte 
+                    // Boton para el envio del reporte
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: incidencia != null
                             ? () => enviarReporte(
-                                  incidencia!,
-                                  controlador.text,
-                                  context,
-                                )
+                                incidencia!,
+                                controlador.text,
+                                context,
+                              )
                             : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: incidencia != null
@@ -474,8 +479,8 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-// Construccion de las opciones de las incidencias
-// Son las opciones del row de la parte de arriba 
+  // Construccion de las opciones de las incidencias
+  // Son las opciones del row de la parte de arriba
   Widget _buildIncidenciaOption(
     String titulo,
     IconData icono,
@@ -520,10 +525,10 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-// Funcion para tomar fotos, aun no me queda esta parte
-// Esta funcion es la que aun no me queda pero voy a checarla 
+  // Funcion para tomar fotos, aun no me queda esta parte
+  // Esta funcion es la que aun no me queda pero voy a checarla
   Future<void> tomarFoto() async {
-   /* String? path = await camara.tomarFoto();
+    /* String? path = await camara.tomarFoto();
     if (path != null) {
       setState(() {
         fotoTomada = path;
@@ -531,9 +536,9 @@ class _MyHomePageState extends State<MyHomePage> {
     }*/
   }
 
-// Lo mismo pero para la seleccion de imagenes 
+  // Lo mismo pero para la seleccion de imagenes
   void galeria() async {
-   /* String? path = await camara.seleccionarDesdeGaleria();
+    /* String? path = await camara.seleccionarDesdeGaleria();
     if (path != null) {
       setState(() {
         fotoTomada = path;
@@ -541,12 +546,20 @@ class _MyHomePageState extends State<MyHomePage> {
     }*/
   }
 
-  void enviarReporte(
+  Future<List<Map<String, dynamic>>?> enviarReporte(
     String tipoIncidencia,
     String descripcion,
     BuildContext context,
-  ) {
-    // Aqui se implementaaria la logica para enviar el reporte a la base de datos
-    // Tambien estan los parametros que se ocupan para el envio 
+  ) async {
+    try {
+      final datos = await Supabase.instance.client
+          .from('incidencias_generales')
+          .select();
+      print("Los datos obtenidos son: ${datos}");
+      return datos;
+    } catch (e) {
+      print('Error en ${e}');
+      return null;
+    }
   }
 }
